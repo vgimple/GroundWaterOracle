@@ -6,6 +6,13 @@ import zipfile as zf
 from tqdm import tqdm
 
 
+# TODOs:
+# - make creating a new sqlite database an option of the zipimport command
+# - expand backup functionality to more than just one backup
+# - import at the moment is horribly slow - it would probably be better to 
+#   build the data in memory and then commit it to the database
+
+
 # container to host global options
 class GlobalOptions:
     def __init__(self, **kwargs):

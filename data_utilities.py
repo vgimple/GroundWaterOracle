@@ -1,3 +1,4 @@
+import math
 import re
 import sqlite3
 import zipfile as zf
@@ -114,13 +115,30 @@ def addColumnIfNotExist(dbLink: DatabaseLink, table: str, columnName: str):
     dbLink.connection.commit()  
 
 
+def addRowIfNotExist(dbLink: DatabaseLink, table: str, date: str):
+    """
+    Add a row to a table if it does not exist yet.
+    dbLink: DataBaseLink    The database link.
+    table: str    The table name.
+    date: str    The date of the row.
+    """
+    # Check if the row exists
+    dbLink.cursor.execute(f"SELECT * FROM {table} WHERE date = ?", (date,))
+    row = dbLink.cursor.fetchone()
+
+    # Add the row if it doesn't exist
+    if row is None:
+        dbLink.cursor.execute(f"INSERT INTO {table} (date) VALUES (?)", (date,))
+        #dbLink.connection.commit()
+
+
 def convertToFloat(string_value):
     if string_value == '':
-        return None
+        return math.nan
     try:
         return float(string_value)
     except ValueError:
-        return None
+        return math.nan
     
 
 def importFile(zipFile: zf.ZipFile, path: str, dbLink: DatabaseLink):
@@ -165,15 +183,21 @@ def importFile(zipFile: zf.ZipFile, path: str, dbLink: DatabaseLink):
             if data_started:
                 line = line.replace(',', '.')
                 values = line.split(';')
+                # there are cases where there is no data in the file - in those cases, the line will usually not
+                # contain any semicolons and therefore have less than 2 values
                 if len(values) < 2:
                     continue
-                #sql = f"UPDATE {fileType}_data SET '{station}' = ? WHERE date = ?"
-                sql = f"INSERT OR REPLACE INTO {fileType}_data (date, '{station}') VALUES (?, ?)"
-                dbLink.cursor.execute(sql, (values[0], convertToFloat(values[1])))
+                # make sure a row for the date exists
+                addRowIfNotExist(dbLink, f'{fileType}_data', values[0])
+                # insert the data
+                sql = f"UPDATE {fileType}_data SET '{station}' = ? WHERE date = ?"
+                dbLink.cursor.execute(sql, (convertToFloat(values[1]), values[0]))
+                #dbLink.connection.commit()
                 continue
             elif match:
-                station_name = match.group('name')
+                station_name = match.group('name').replace('"', '').replace('_', ' ').strip()
                 dbLink.cursor.execute(f"INSERT OR REPLACE INTO {fileType}_stations (id, name) VALUES (?, ?)", (station, station_name))                
+                #dbLink.connection.commit()
                 continue
             elif re.match(pattern=pattern_header, string=line):
                 data_started = True
