@@ -1,5 +1,6 @@
 import click
 import data_utilities as du
+import os
 import zipfile as zf
 
 from tqdm import tqdm
@@ -21,6 +22,11 @@ global_options = GlobalOptions()
 def cli(sqlitedb):
     click.echo(f"using database file {sqlitedb}...")
     global_options.add_attribute('sqlitedb', sqlitedb)
+    if os.path.exists(sqlitedb):
+        click.echo("database file exists - creating backup...")
+        if os.path.exists(sqlitedb + '.bak'):
+            os.remove(sqlitedb + '.bak')
+        os.rename(sqlitedb, sqlitedb + '.bak')
 
 
 # import downloaded data into the database
@@ -34,7 +40,7 @@ def zipimport(zipfile):
     click.echo(f"zip file {zipfile} contains data from {len(zipContents.rainStations)} rain measurement stations and {len(zipContents.waterStations)} water measurement stations...")
 
     # import data
-    for file in tqdm(zipContents.files, desc='importing files', unit=' files'):
+    for file in tqdm(zipContents.files, desc='importing files', unit='file'):
         du.importFile(zipFile, file, dbLink)
 
 
